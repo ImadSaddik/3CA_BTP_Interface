@@ -93,6 +93,7 @@ def show_data_form():
             # Getting meteo data
             df = get_meteorological_data(
                 start_date, end_date, latitude, longitude)
+            print(df)
             if df is None:
                 return
 

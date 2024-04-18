@@ -5,9 +5,9 @@ import streamlit as st
 
 
 def get_meteorological_data(start_date, end_date, latitude, longitude):
-    start_date = pd.to_datetime(start_date, format='%Y%m%d')
-    end_date = pd.to_datetime(end_date, format='%Y%m%d')
-    date_range = pd.date_range(start=start_date, end=end_date, freq='MS')
+    start_month = pd.to_datetime(start_date, format='%Y%m%d').to_period('M').start_time
+    end_month = pd.to_datetime(end_date, format='%Y%m%d').to_period('M').start_time
+    date_range = pd.date_range(start=start_month, end=end_month, freq='MS')
     
     df = call_solcast_api(date_range, latitude, longitude)
     if df is not None:
