@@ -5,10 +5,12 @@ from streamlit_option_menu import option_menu
 
 from tabs.MeteoHub import show_data_form
 from tabs.ProductionViewer import show_production
+from tabs.Decarbonization import show_decarbonization
 
 
 TAB_1 = "Data hub"
 TAB_2 = "Production"
+TAB_3 = "Decarbonization"
 
 def main():
     st.title("BIPV Interactive interface")
@@ -16,7 +18,7 @@ def main():
     with st.container():
         selected_tab = option_menu(
             menu_title=None,
-            options=[TAB_1, TAB_2, "Decarbonization"],
+            options=[TAB_1, TAB_2, TAB_3],
             icons=['house', 'diagram-3','gear', 'clipboard-check'],
             menu_icon="cast",
             default_index=0,
@@ -38,8 +40,8 @@ def handle_selected_tab(selected_tab):
     elif selected_tab == TAB_2:
         show_production()
             
-    elif selected_tab == 'Reports':
-        pass
+    elif selected_tab == TAB_3:
+        show_decarbonization()
     
             
 if __name__ == "__main__":

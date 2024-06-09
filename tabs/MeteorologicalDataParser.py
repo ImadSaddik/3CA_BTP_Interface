@@ -26,7 +26,7 @@ def call_solcast_api(date_range, latitude, longitude):
     duration = "P31D"
     format_ = "json"
     time_zone = "utc"
-    output_parameters = "air_temp,albedo,azimuth,clearsky_dhi,clearsky_dni,clearsky_ghi,clearsky_gti,cloud_opacity,dewpoint_temp,dhi,dni,ghi,gti,precipitable_water,precipitation_rate,relative_humidity,surface_pressure,wind_direction_100m,wind_direction_10m,wind_speed_100m,wind_speed_10m,zenith"
+    output_parameters = "air_temp,dewpoint_temp,relative_humidity,surface_pressure,dni,dhi,wind_direction_10m,wind_speed_100m"
     
     responses = []
     for date in date_range:
@@ -38,10 +38,12 @@ def call_solcast_api(date_range, latitude, longitude):
         
     try:
         meteo_df = parse_meteo_data(responses)
-        preprocessed_meteo_df = preprocess_data(meteo_df)
-        preprocessed_meteo_df = add_day_month_year(preprocessed_meteo_df)
+        meteo_df = convert_to_month(meteo_df)
+        meteo_df = rename_columns(meteo_df)
+        meteo_df = add_day_month_year(meteo_df)
+        meteo_df = handle_units(meteo_df)
         
-        return preprocessed_meteo_df
+        return meteo_df
     except:
         st.error('An error occurred while fetching the meteo data, check the validity of the API Key.')
         return None
@@ -64,41 +66,40 @@ def parse_meteo_data(responses):
 def add_day_month_year(df):
     df['date'] = pd.to_datetime(df['date'])
 
-    df['day'] = df['date'].dt.day
-    df['month'] = df['date'].dt.month
-    df['year'] = df['date'].dt.year
+    df['Day'] = df['date'].dt.day
+    df['Month'] = df['date'].dt.month
 
     return df
 
 
-def preprocess_data(df):
+def convert_to_month(df):
     df['date'] = pd.to_datetime(df['date'], utc=True)
     df['date'] = df['date'].dt.strftime('%d-%m-%Y')
     df['date'] = pd.to_datetime(df['date'], format='%d-%m-%Y')
 
     df.set_index('date', inplace=True)
-    
-    columns = list(df.columns)[:-1]
-    agg_dict = {col: ['mean', 'std', 'min', q1, q2, q3, 'max'] for col in columns}
-
-    df_resampled = df.resample('D').agg(agg_dict)
-    df_resampled = df_resampled.reset_index()
-
-    df_resampled.columns = [
-        '_'.join(col).strip() for col in df_resampled.columns.values]
-    
-    df_resampled.rename(columns={'date_': 'date'}, inplace=True)
+    df_resampled = df.resample('D').mean()
+    df_resampled.reset_index(inplace=True)
     
     return df_resampled
 
+
+def rename_columns(df):
+    df.rename(columns={
+        'air_temp': 'Dry Bulb Temperature',
+        'dewpoint_temp': 'Dew Point Temperature',
+        'relative_humidity': 'Relative Humidity',
+        'surface_pressure': 'Atmospheric Station Pressure',
+        'dhi': 'Diffuse Horizontal Radiation',
+        'dni': 'Direct Normal Illuminance',
+        'wind_direction_10m': 'Wind Direction',
+        'wind_speed_100m': 'Wind Speed'
+    }, inplace=True)
     
-def q1(x):
-    return x.quantile(0.25)
+    return df
 
 
-def q2(x):
-    return x.quantile(0.50)
-
-
-def q3(x):
-    return x.quantile(0.75)
+def handle_units(df):
+    df['Atmospheric Station Pressure'] = df['Atmospheric Station Pressure'] * 100
+    
+    return df

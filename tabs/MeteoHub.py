@@ -3,8 +3,8 @@ import streamlit as st
 from datetime import datetime
 
 from tabs.MeteorologicalDataParser import get_meteorological_data
-from tabs.SolarPanels import PANEL_1_DATA, PANEL_2_DATA, PANEL_3_DATA
-from tabs.SolarPanels import PANEL_1_CONSTANT, PANEL_2_CONSTANT, PANEL_3_CONSTANT
+from tabs.SolarPanels import PANEL_DATA
+from tabs.SolarPanels import PANEL_CONSTANTS
 
 
 def show_data_form():
@@ -31,46 +31,44 @@ def show_data_form():
         end_date = process_date(date=end_date)
 
     with column2:
-        latitude = st.number_input('Latitude', value=st.session_state.get("latitude", 0))
-        longitude = st.number_input('Longitude', value=st.session_state.get("longitude", 0))
+        latitude = st.number_input('Latitude', value=st.session_state.get("latitude", 0.0), step=0.01)
+        longitude = st.number_input('Longitude', value=st.session_state.get("longitude", 0.0), step=0.01)
 
     st.markdown('### Solar panel data')
     pv_manual_mode = st.checkbox('Use manual mode', value=st.session_state.get("pv_manual_mode", False))
     if pv_manual_mode:
         column1, column2 = st.columns(2)
         with column1:
-            vmp = st.number_input('Vmp (V)', value=st.session_state.get("vmp", 0))
-            imp = st.number_input('Imp (A)', value=st.session_state.get("imp", 0))
-            voc = st.number_input('Voc (V)', value=st.session_state.get("voc", 0))
-            isc = st.number_input('Isc (A)', value=st.session_state.get("isc", 0))
+            vmpp = st.number_input('Vmpp (V)', value=st.session_state.get("pv_vmpp", 0))
+            vocc = st.number_input('Vocc (V)', value=st.session_state.get("pv_vocc", 0))
+            isc = st.number_input('Isc (A)', value=st.session_state.get("pv_isc", 0))
 
         with column2:
-            p_per_m2 = st.number_input('Power per m² (W/m²)', value=st.session_state.get("p_per_m2", 0))
-            panel_area = st.number_input('Panel panel_area (m²)', value=st.session_state.get("panel_area", 0))
-            p_max = st.number_input('Max power (W)', value=st.session_state.get("p_max", 0))
+            height = st.number_input('Height (m)', value=st.session_state.get("pv_height", 0))
+            width = st.number_input('Width (m)', value=st.session_state.get("pv_width", 0))
+            p_max = st.number_input('Max power (W)', value=st.session_state.get("pv_peak_power", 0))
     else:
         solar_panel_dropdown = st.selectbox(
             'Select a solar panel',
-            [PANEL_1_CONSTANT, PANEL_2_CONSTANT, PANEL_3_CONSTANT]
+            PANEL_CONSTANTS
         )
         
-        selected_panel = None
-        if solar_panel_dropdown == PANEL_1_CONSTANT:
-            selected_panel = PANEL_1_DATA
-        elif solar_panel_dropdown == PANEL_2_CONSTANT:
-            selected_panel = PANEL_2_DATA
-        elif solar_panel_dropdown == PANEL_3_CONSTANT:
-            selected_panel = PANEL_3_DATA
+        if solar_panel_dropdown is not None:
+            selected_panel = PANEL_DATA[solar_panel_dropdown]
             
-        vmp = selected_panel['vmp']
-        imp = selected_panel['imp']
-        voc = selected_panel['voc']
-        isc = selected_panel['isc']
-        p_per_m2 = selected_panel['p_per_m2']
-        panel_area = selected_panel['panel_area']
-        p_max = selected_panel['p_max']
+            p_max = selected_panel['pv_peak_power']
+            width = selected_panel['pv_width']
+            height = selected_panel['pv_height']
+            vocc = selected_panel['pv_vocc']
+            vmpp = selected_panel['pv_vmpp']
+            isc = selected_panel['pv_isc']
 
     st.markdown('### BIM data')
+    facade_type_dropdown = st.selectbox(
+            'Select where to put the solar panels',
+            ['Facade', 'Roof']
+        )
+    
     column1, column2 = st.columns(2)
     with column1:
         facade_area = st.number_input('Facade panel_area (m²)', value=st.session_state.get("facade_area", 0))
@@ -85,7 +83,7 @@ def show_data_form():
             st.error('⚠️ Please don\'t select the current month as the end date.')
             return
 
-        if errors_exist(start_date, end_date, latitude, longitude, vmp, imp, voc, isc, p_per_m2, panel_area, p_max, facade_area, exploitation_ratio):
+        if errors_exist(start_date, end_date, latitude, longitude, vmpp, vocc, isc, width, height, p_max, facade_area, exploitation_ratio):
             st.session_state["is_df_loaded"] = False
             return
 
@@ -96,24 +94,20 @@ def show_data_form():
             if df is None:
                 return
 
-            # Adding location data
-            df['latitude'] = latitude
-            df['longitude'] = longitude
-
             # Adding PV data
-            df['vmp'] = vmp
-            df['imp'] = imp
-            df['voc'] = voc
-            df['isc'] = isc
-            df['p_per_m2'] = p_per_m2
-            df['p_max'] = p_max
-            df['panel_area'] = panel_area
+            df['pv_peak_power'] = p_max
+            df['pv_width'] = width
+            df['pv_height'] = height
+            df['pv_vmpp'] = vmpp
+            df['pv_vocc'] = vocc
+            df['pv_isc'] = isc
 
-            # Adding BIM data
-            df['facade_area'] = facade_area
-            df['exploitation_ratio'] = exploitation_ratio
-            df['total_panel_area'] = facade_area * exploitation_ratio
+            panel_area = width * height
+            usable_area = facade_area * exploitation_ratio / 100
+            df['number_solar_panels'] = int(usable_area / panel_area)
+            df['facade_type'] = 1 if facade_type_dropdown == 'Facade' else 2
 
+            # Saving everything to state
             st.session_state["df"] = df
             
             st.session_state["start_date"] = start_date
@@ -122,13 +116,12 @@ def show_data_form():
             st.session_state["latitude"] = latitude
             st.session_state["longitude"] = longitude
             
-            st.session_state["vmp"] = vmp
-            st.session_state["imp"] = imp
-            st.session_state["voc"] = voc
-            st.session_state["isc"] = isc
-            st.session_state["p_per_m2"] = p_per_m2
-            st.session_state["panel_area"] = panel_area
-            st.session_state["p_max"] = p_max
+            st.session_state["pv_peak_power"] = p_max
+            st.session_state["pv_width"] = width
+            st.session_state["pv_height"] = height
+            st.session_state["pv_vmpp"] = vmpp
+            st.session_state["pv_vocc"] = vocc
+            st.session_state["pv_isc"] = isc
             
             st.session_state["facade_area"] = facade_area
             st.session_state["exploitation_ratio"] = exploitation_ratio
@@ -145,7 +138,7 @@ def process_date(date):
     return date
 
 
-def errors_exist(start_date, end_date, latitude, longitude, vmp, imp, voc, isc, p_per_m2, panel_area, p_max, facade_area, exploitation_ratio):
+def errors_exist(start_date, end_date, latitude, longitude, vmp, voc, isc, width, height, p_max, facade_area, exploitation_ratio):
     if (latitude == 0) or (longitude == 0):
         st.error('Latitude and Longitude must be different from 0')
         return True
@@ -158,12 +151,12 @@ def errors_exist(start_date, end_date, latitude, longitude, vmp, imp, voc, isc, 
         st.error('Start date must be different from end date')
         return True
     
-    if (vmp <= 0) or (imp <= 0) or (voc <= 0) or (isc <= 0):
-        st.error('Vmp, Imp, Voc and Isc must be greater than 0')
+    if (vmp <= 0) or (voc <= 0) or (isc <= 0):
+        st.error('Vmpp, Vocc and Isc must be greater than 0')
         return True
 
-    if (p_per_m2 <= 0) or (panel_area <= 0) or (p_max <= 0):
-        st.error('Power per m², Panel panel_area and Max power must be greater than 0')
+    if (width <= 0) or (height <= 0) or (p_max <= 0):
+        st.error('Width, Height and Max power must be greater than 0')
         return True
 
     if exploitation_ratio <= 0 or exploitation_ratio > 100:
