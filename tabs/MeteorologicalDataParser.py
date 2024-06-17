@@ -90,7 +90,7 @@ def rename_columns(df):
         'dewpoint_temp': 'Dew Point Temperature',
         'relative_humidity': 'Relative Humidity',
         'surface_pressure': 'Atmospheric Station Pressure',
-        'dhi': 'Diffuse Horizontal Radiation',
+        'dhi': 'Diffuse Horizontal Illuminance',
         'dni': 'Direct Normal Illuminance',
         'wind_direction_10m': 'Wind Direction',
         'wind_speed_100m': 'Wind Speed'

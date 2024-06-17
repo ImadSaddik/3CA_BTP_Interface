@@ -1,10 +1,13 @@
 import os
 import pickle
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 import plotly.graph_objects as go
+
+from keras.models import load_model
 
 from tabs.SolarPanels import PANEL_DATA
 from tabs.SolarPanels import PANEL_CONSTANTS
@@ -13,10 +16,8 @@ from tabs.SolarPanels import PANEL_CONSTANTS
 def show_production():
     cwd = os.getcwd()
 
-    model_path = os.path.join(
-        cwd, 'models/xg_boost/model.pkl')
     x_scaler_path = os.path.join(
-        cwd, 'models/xg_boost/x_scaler.pkl')
+        cwd, 'scaler/x_scaler.pkl')
     
     with open(x_scaler_path, 'rb') as file:
         x_scaler = pickle.load(file)
@@ -29,7 +30,7 @@ def show_production():
         with column1:
             model_dropdown = st.selectbox(
                 'Select a model',
-                ['XGBoost'],
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
                 key='model_dropdown_single_production'
             )
 
@@ -48,6 +49,26 @@ def show_production():
                 return
 
             if model_dropdown == 'XGBoost':
+                model_path = os.path.join(cwd, 'models/XGBRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+
+            elif model_dropdown == 'DNN':
+                model_path = os.path.join(cwd, 'models/dnn.keras')
+                model = load_model(model_path)
+            
+            elif model_dropdown == 'Decision Tree':
+                model_path = os.path.join(cwd, 'models/DecisionTreeRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+                    
+            elif model_dropdown == 'Gradient Boosting':
+                model_path = os.path.join(cwd, 'models/GradientBoostingRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+                    
+            elif model_dropdown == 'Random Forest':
+                model_path = os.path.join(cwd, 'models/RandomForestRegressor.pkl')
                 with open(model_path, 'rb') as file:
                     model = pickle.load(file)
                     
@@ -55,11 +76,13 @@ def show_production():
             date = df['date']
             df = df.drop(columns=['date'], axis=1)
 
-            df = df[x_scaler.feature_names_in_]
+            select_features = list(x_scaler.feature_names_in_)
+            df = df[select_features]
             df = replace_solar_panel_data(df, solar_panel_dropdown)
 
             x = x_scaler.transform(df)
             y = model.predict(x).ravel()
+            y = np.clip(y, 0, None)
 
             total_prediction = y.sum()
             st.session_state['energy_produced'] = total_prediction
@@ -86,7 +109,7 @@ def show_production():
         with column1:
             model_dropdown = st.selectbox(
                 'Select a model',
-                ['XGBoost'],
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
                 key='model_dropdown_production_comparison'
             )
 
@@ -109,6 +132,26 @@ def show_production():
                 return
 
             if model_dropdown == 'XGBoost':
+                model_path = os.path.join(cwd, 'models/XGBRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+
+            elif model_dropdown == 'DNN':
+                model_path = os.path.join(cwd, 'models/dnn.keras')
+                model = load_model(model_path)
+            
+            elif model_dropdown == 'Decision Tree':
+                model_path = os.path.join(cwd, 'models/DecisionTreeRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+                    
+            elif model_dropdown == 'Gradient Boosting':
+                model_path = os.path.join(cwd, 'models/GradientBoostingRegressor.pkl')
+                with open(model_path, 'rb') as file:
+                    model = pickle.load(file)
+                    
+            elif model_dropdown == 'Random Forest':
+                model_path = os.path.join(cwd, 'models/RandomForestRegressor.pkl')
                 with open(model_path, 'rb') as file:
                     model = pickle.load(file)
                     
@@ -116,7 +159,8 @@ def show_production():
             date = df['date']
             df = df.drop(columns=['date'], axis=1)
 
-            df = df[x_scaler.feature_names_in_]
+            select_features = list(x_scaler.feature_names_in_)
+            df = df[select_features]
             
             y_values = []
             for i, pv_panel in enumerate(pv_panel_options):
@@ -134,6 +178,7 @@ def show_production():
                     st.session_state["date_frequency_comparison"] = 'Day'
                     
                 y = prediction_df['production'].values
+                y = np.clip(y, 0, None)
                 y_values.append(y)
                 
             plot_comparison_graph(
