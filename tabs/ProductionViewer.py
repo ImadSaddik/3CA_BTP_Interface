@@ -48,29 +48,7 @@ def show_production():
                 st.error('⚠️Please generate the data first.')
                 return
 
-            if model_dropdown == 'XGBoost':
-                model_path = os.path.join(cwd, 'models/XGBRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-
-            elif model_dropdown == 'DNN':
-                model_path = os.path.join(cwd, 'models/dnn.keras')
-                model = load_model(model_path)
-            
-            elif model_dropdown == 'Decision Tree':
-                model_path = os.path.join(cwd, 'models/DecisionTreeRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-                    
-            elif model_dropdown == 'Gradient Boosting':
-                model_path = os.path.join(cwd, 'models/GradientBoostingRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-                    
-            elif model_dropdown == 'Random Forest':
-                model_path = os.path.join(cwd, 'models/RandomForestRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
+            model = get_model(cwd, model_dropdown)
                     
             df = st.session_state["df"]
             date = df['date']
@@ -131,29 +109,7 @@ def show_production():
                 st.error('⚠️Please select at least one solar panel.')
                 return
 
-            if model_dropdown == 'XGBoost':
-                model_path = os.path.join(cwd, 'models/XGBRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-
-            elif model_dropdown == 'DNN':
-                model_path = os.path.join(cwd, 'models/dnn.keras')
-                model = load_model(model_path)
-            
-            elif model_dropdown == 'Decision Tree':
-                model_path = os.path.join(cwd, 'models/DecisionTreeRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-                    
-            elif model_dropdown == 'Gradient Boosting':
-                model_path = os.path.join(cwd, 'models/GradientBoostingRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
-                    
-            elif model_dropdown == 'Random Forest':
-                model_path = os.path.join(cwd, 'models/RandomForestRegressor.pkl')
-                with open(model_path, 'rb') as file:
-                    model = pickle.load(file)
+            model = get_model(cwd, model_dropdown)
                     
             df = st.session_state["df"]
             date = df['date']
@@ -181,19 +137,118 @@ def show_production():
                 y = np.clip(y, 0, None)
                 y_values.append(y)
                 
-            plot_comparison_graph(
+            fig = plot_comparison_graph(
                 x=date,
                 y_values=y_values,
-                panels=pv_panel_options,
+                hue=pv_panel_options,
                 title=f'Production estimation using {model_dropdown}',
                 y_label='Production (kWh)',
                 x_label='Date'
             )
+            st.session_state['pv_comparison_fig'] = fig
             
         # persist the graph in the UI
-        if 'comparison_fig' in st.session_state:
-            st.plotly_chart(st.session_state['comparison_fig'])
+        if 'pv_comparison_fig' in st.session_state:
+            st.plotly_chart(st.session_state['pv_comparison_fig'])
+                        
+    with st.container():
+        st.subheader("Compare models")
+        column1, column2 = st.columns(2)
+        
+        with column1:
+            model_options = st.multiselect(
+                'Choose solar panels',
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
+            )
+        
+        with column2:
+            solar_panel_dropdown = st.selectbox(
+                'Select a solar panel',
+                PANEL_CONSTANTS,
+                key='solar_panel_dropdown_compare_models'
+            )
+            
+        with st.expander('Prediction date frequency'):
+            date_frequency = st.radio('Predictions', ['Day', 'Month'], key='predictions_radio_model_comparison')
+            
+        if st.button('Predict', key='compare_models_button'):
+            if 'df' not in st.session_state:
+                st.error('⚠️Please generate the data first.')
+                return
+            
+            if model_options == []:
+                st.error('⚠️Please select at least one model.')
+                return
+            
+            df = st.session_state["df"]
+            date = df['date']
+            df = df.drop(columns=['date'], axis=1)
 
+            select_features = list(x_scaler.feature_names_in_)
+            df = df[select_features]
+            
+            y_values = []
+            for model_name in model_options:
+                model = get_model(cwd, model_name)
+                
+                df = replace_solar_panel_data(df, solar_panel_dropdown)
+
+                x = x_scaler.transform(df)
+                y = model.predict(x).ravel()
+                
+                prediction_df = pd.DataFrame({'date': date, 'production': y})
+                
+                if date_frequency == 'Month':
+                    st.session_state["date_frequency_comparison"] = 'Month'
+                    prediction_df = convert_daily_to_monthly(prediction_df)
+                else:
+                    st.session_state["date_frequency_comparison"] = 'Day'
+                    
+                y = prediction_df['production'].values
+                y = np.clip(y, 0, None)
+                y_values.append(y)
+                
+            fig = plot_comparison_graph(
+                x=date,
+                y_values=y_values,
+                hue=model_options,
+                title=f'Production comparison between models',
+                y_label='Production (kWh)',
+                x_label='Date'
+            )
+            st.session_state['model_comparison_fig'] = fig
+            
+        # persist the graph in the UI
+        if 'model_comparison_fig' in st.session_state:
+            st.plotly_chart(st.session_state['model_comparison_fig'])
+
+
+def get_model(cwd, model_dropdown):
+    if model_dropdown == 'XGBoost':
+        model_path = os.path.join(cwd, 'models/XGBRegressor.pkl')
+        with open(model_path, 'rb') as file:
+            model = pickle.load(file)
+
+    elif model_dropdown == 'DNN':
+        model_path = os.path.join(cwd, 'models/dnn.keras')
+        model = load_model(model_path)
+
+    elif model_dropdown == 'Decision Tree':
+        model_path = os.path.join(cwd, 'models/DecisionTreeRegressor.pkl')
+        with open(model_path, 'rb') as file:
+            model = pickle.load(file)
+            
+    elif model_dropdown == 'Gradient Boosting':
+        model_path = os.path.join(cwd, 'models/GradientBoostingRegressor.pkl')
+        with open(model_path, 'rb') as file:
+            model = pickle.load(file)
+            
+    elif model_dropdown == 'Random Forest':
+        model_path = os.path.join(cwd, 'models/RandomForestRegressor.pkl')
+        with open(model_path, 'rb') as file:
+            model = pickle.load(file)
+            
+    return model
 
 def convert_daily_to_monthly(df):
     df['date'] = pd.to_datetime(df['date'])
@@ -249,7 +304,7 @@ def plot_graph(x, y, title, y_label, x_label):
     st.session_state['fig'] = fig
     
     
-def plot_comparison_graph(x, y_values, panels, title, y_label, x_label):
+def plot_comparison_graph(x, y_values, hue, title, y_label, x_label):
     fig = go.Figure()
     
     if st.session_state['date_frequency_comparison'] == 'Day':
@@ -257,7 +312,7 @@ def plot_comparison_graph(x, y_values, panels, title, y_label, x_label):
             fig.add_trace(go.Scatter(x=x, y=y,
                                         hovertemplate='<b>Date</b>: %{x}<br>' +
                                         '<b>Production (kWh)</b>: %{y}<br>',
-                                        name=panels[i]))
+                                        name=hue[i]))
     elif st.session_state['date_frequency_comparison'] == 'Month':
         x.index = pd.to_datetime(x)
         x = x.resample('ME').mean()
@@ -267,7 +322,7 @@ def plot_comparison_graph(x, y_values, panels, title, y_label, x_label):
             fig.add_trace(go.Bar(x=x, y=y,
                                         hovertemplate='<b>Month</b>: %{x}<br>' +
                                         '<b>Production (kWh)</b>: %{y}<br>',
-                                        name=panels[i]))
+                                        name=hue[i]))
             
         fig.update_layout(
             xaxis=dict(
@@ -284,4 +339,4 @@ def plot_comparison_graph(x, y_values, panels, title, y_label, x_label):
         yaxis_title=y_label
     )
         
-    st.session_state['comparison_fig'] = fig
+    return fig
