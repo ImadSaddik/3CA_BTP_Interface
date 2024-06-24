@@ -30,7 +30,7 @@ def show_production():
         with column1:
             model_dropdown = st.selectbox(
                 'Select a model',
-                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting'],
                 key='model_dropdown_single_production'
             )
 
@@ -87,7 +87,7 @@ def show_production():
         with column1:
             model_dropdown = st.selectbox(
                 'Select a model',
-                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting'],
                 key='model_dropdown_production_comparison'
             )
 
@@ -157,8 +157,8 @@ def show_production():
         
         with column1:
             model_options = st.multiselect(
-                'Choose solar panels',
-                ['XGBoost', 'Decision Tree', 'Gradient Boosting', 'DNN'],
+                'Choose models',
+                ['XGBoost', 'Decision Tree', 'Gradient Boosting'],
             )
         
         with column2:

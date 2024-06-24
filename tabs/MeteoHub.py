@@ -71,7 +71,7 @@ def show_data_form():
     
     column1, column2 = st.columns(2)
     with column1:
-        facade_area = st.number_input('Facade panel_area (m²)', value=st.session_state.get("facade_area", 0))
+        facade_area = st.number_input('Total surface area (m²)', value=st.session_state.get("facade_area", 0))
 
     with column2:
         exploitation_ratio = st.number_input('Exploitation ratio (%), between 0 and 100', value=st.session_state.get("exploitation_ratio", 0))
@@ -164,7 +164,7 @@ def errors_exist(start_date, end_date, latitude, longitude, vmp, voc, isc, width
         return True
     
     if facade_area <= 0:
-        st.error('Facade panel_area must be greater than 0')
+        st.error('Total surface area must be greater than 0')
         return True
     
     return False
