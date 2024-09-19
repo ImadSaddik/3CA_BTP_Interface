@@ -5,3 +5,4 @@ streamlit
 streamlit-option-menu
 scikit-learn
 xgboost
+tensorflow
