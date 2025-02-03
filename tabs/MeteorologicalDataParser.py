@@ -18,8 +18,7 @@ def get_meteorological_data(start_date, end_date, latitude, longitude):
     
     
 def call_solcast_api(date_range, latitude, longitude):
-    # API_KEY = '3nlkiduDWKW3Az0uqE9d6eh4OCqFRM9_'
-    API_KEY = 'MrX8FqgWtm7gsjrezjECQ_pcGg0O9PkM'
+    API_KEY = 'nnYj3COD8UJsSkblcgmAD8NqQCf57otQ'
     headers = {
         "Authorization": f"Bearer {API_KEY}"
     }
